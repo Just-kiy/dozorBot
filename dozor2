@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-import telepot, time, sys, random, os, json
+import telepot, datetime, time, sys, os, json
 from pprint import pprint
 
 BOT_TOKEN = "178002319:AAE8RLeChZH8uEPT5ooeJ-N4IsD0ZwUrmFA"
+ADMIN_ID = 82691326
 SECRET_WORD = u"TESTWORD"
 SECRET_CODES = [u'TE', u'ST', u'WO', u'RD']
 SECRET_COUNT = len(SECRET_CODES)
-BAD_MSG = "Код не принят"
-GOOD_MSG = "Код принят"
-START_MSG = "Внимание, команды! Квест начался! Время пошло!"
-teams = []
-timer = 0
+BAD_MSG = u": код не принят"
+GOOD_MSG = u": код принят"
+START_MSG = u"Внимание, команды! Квест начался! Время пошло!"
 
 
 
@@ -22,103 +21,128 @@ class Team:
         self.list_of_codes = SECRET_CODES
         self.is_word = False
         self.has_ended = False
+        self.timer = 0
 
-
-def start_quest():
-    for t in teams:
-        bot.sendMessage(t.owner_id, START_MSG)
-
-    pass
-
-
-def find_team(user_id):
-    for t in teams:
-        if user_id == t.owner_id:
-            return t
-    return False
-
-
-def check_code(team, code, user_id):
-    if not team.is_word:
-            if code.upper() in team.list_of_codes:
-                bot.sendMessage(user_id, code + ' ' + GOOD_MSG)
-                team.solved += 1
-                team.list_of_codes.remove(code)
-                if team.solved == SECRET_COUNT:
-                    team.is_word = True
-                    bot.sendMessage(user_id, 'Введите полное кодовое слово:')
+class Game:
+    def __init__(self, game_name):
+        self.isGoing = False
+        # self.has_ended = False
+        self.teams = []
+        self.timer = 0
+        self.game_name = game_name
+    def start_quest(self, user_id):
+        if self.isGoing != True:
+            self.isGoing = True
+            self.timer = time.time()
+            for t in self.teams:
+                bot.sendMessage(t.owner_id, START_MSG)
+                t.timer = time.time()
+        else:
+            bot.sendMessage(user_id, 'Квест уже запущен!')
+    def find_team(self, user_id):
+        for t in self.teams:
+            if user_id == t.owner_id:
+                return t
+        return False
+    def check_code(self, team, code):
+        user_id = team.owner_id
+        response = code
+        code = code.upper()
+        if not team.has_ended:
+            if not team.is_word:
+                    if code.upper() in team.list_of_codes:
+                        response += GOOD_MSG
+                        bot.sendMessage(user_id, response)
+                        team.solved += 1
+                        team.list_of_codes.remove(code)
+                        if team.solved == SECRET_COUNT:
+                            team.is_word = True
+                            bot.sendMessage(user_id, 'Введите полное кодовое слово:')
+                    else:
+                        response += BAD_MSG
+                        bot.sendMessage(user_id, response)
             else:
-                bot.sendMessage(user_id, BAD_MSG)
-    else:
-        if code != SECRET_WORD:
-            bot.sendMessage(user_id, BAD_MSG)
-        else:
-            bot.sendMessage(user_id, "Поздравляем, вы прошли квест!")
-
-
-
-def register_team(user_id, team_name):
-    bot.sendMessage(user_id, "Success!")
-    newteam = Team(team_name, user_id)
-    teams.append(newteam)
-    fTeams.truncate(0)
-    fTeams.write(json.dumps(teams))
-    fTeams.flush()
-
-
-def is_registered(user_id):
-    for t in teams:
-        if t.owner_id == user_id:
-            return True
-    return False
-
-
-def print_teams(user):
-    message = [t.name.decode('unicode_escape') for t in teams]
-    bot.sendMessage(user["id"], message)
-
-
-def handle_message(msg):
-    try: 
-        user = msg["from"]
-        pprint(msg)
-        text = msg["text"].split()
-        current_team = find_team(user['id'])
-        if "/" in text[0]:
-            if text[0] == "/register":
-                if len(text) == 2:
-                    register_team(user['id'], text[0])
+                if code != SECRET_WORD:
+                    response += BAD_MSG
+                    bot.sendMessage(user_id, response)
                 else:
-                    bot.sendMessage(user["id"], "Пожалуйста, введите /register и название своей команды!")
-            elif text[0] == "/status":
-                pass
-            elif text[0] == "/teams":
-                print_teams(user)
-            elif text[0] == "/start":
-                start_quest()
-        elif is_registered(user['id']):
-            check_code(curren_tteam, text[0], user['id'])
+                    team.timer = time.time() - team.timer
+                    team.has_ended = True
+                    bot.sendMessage(user_id, "Поздравляем, вы прошли квест!\nВаше время: {0} секунд".format(team.timer))
         else:
-            bot.sendMessage(user['id'], 'Вы не зарегестрированы на квест!')
-    except Error(e):
-        print e
+            bot.sendMessage(team.owner_id, 'Вы уже прошли квест!')
+    def __register(self, user_id, text):
+            if len(text) == 2:
+                if not self.is_registered(user_id):
+                    if not self.isGoing:
+                        self.register_team(user_id, text[1])
+                        bot.sendMessage(user_id, 'Вы успешно зарегестрированы!')
+                    else:
+                        bot.sendMessage(user_id, 'Квест уже идет!')
+                else:
+                    bot.sendMessage(user_id, 'Вы уже зарегестрированы на квест!')
+            else:
+                bot.sendMessage(user_id, 'Пожалуйста, введите /register и название команды')
+    def register_team(self, user_id, team_name):
+        newteam = Team(team_name, user_id)
+        self.teams.append(newteam)
+    #   fTeams.truncate(0)
+     #  fTeams.write(json.dumps(self.teams))
+      # fTeams.flush()
+    def is_registered(self, user_id):
+        for t in self.teams:
+            if t.owner_id == user_id:
+                return True
+        return False
+    def print_teams(self, user):
+        message = [t.name for t in self.teams]
+        bot.sendMessage(user["id"], message)        
+    def status(self, user_id):
+        message = {t.name : t.solved for t in self.teams}
+        bot.sendMessage(user_id, message)
+    def handle_message(self, msg):
+        try:
+            user = msg['from']
+            text = msg['text'].split()
+            pprint(msg)
+            team = self.find_team(user['id'])
+            if msg.has_key('entities'):
+                pprint(msg['entities'][0]['type'])
+                if text[0] == '/register':
+                    self.__register(user['id'], text)
+                elif user['id'] == ADMIN_ID:
+                    if text[0] == '/teams':
+                        self.print_teams(user)
+                    elif text[0] == '/status':
+                        self.print_status(user['id'])
+                    elif text[0] == '/start_quest':
+                        self.start_quest(user['id'])
+                    elif text[0] == '/stop_quest':
+                        pass
+                    else:
+                        bot.sendMessage(user['id'], 'Введена неправильная команда!')
+                else:
+                    bot.sendMessage(user['id'], 'У вас нет прав для выполнения этой команды!')
+            else:
+                if self.isGoing == True:
+                    self.check_code(team, text[0])
+                else:
+                    bot.sendMessage(user['id'], 'Квест еще не начался!')
+        except Exception as e:
+            print e
+
 
 
 #====================MAIN=============================#
-
-
-f = open("ReceivedMessages.log", 'w')
-fTeams = open("RegisteredTeams.json", 'r+')
-
-teams = json.loads(fTeams.readline())
-
-bot = telepot.Bot(BOT_TOKEN)
-bot.message_loop(handle_message)
-print 'Listening...'
-
-while 1:
-    time.sleep(10)
-
-f.close()
-fTeams.close()
- 
+if __name__ == '__main__':
+    f = open("ReceivedMessages.log", 'w')
+    fTeams = open("RegisteredTeams.json", 'r+')
+    quest = Game('temp quest')
+    teams = json.loads(fTeams.readline())
+    bot = telepot.Bot(BOT_TOKEN)
+    bot.message_loop(quest.handle_message)
+    print 'Listening...'
+    while 1:
+        time.sleep(10)
+    f.close()
+    fTeams.close()
