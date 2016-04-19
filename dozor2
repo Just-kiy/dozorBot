@@ -10,7 +10,11 @@ SECRET_COUNT = len(SECRET_CODES)
 BAD_MSG = u": код не принят"
 GOOD_MSG = u": код принят"
 START_MSG = u"Внимание, команды! Квест начался! Время пошло!"
+STOP_MSG = u"Внимание, команды! Квест окончен! Всем командам вернутся на базу!"
 
+
+def jdefault(o):
+    return o.__dict__
 
 
 class Team:
@@ -30,15 +34,22 @@ class Game:
         self.teams = []
         self.timer = 0
         self.game_name = game_name
-    def start_quest(self, user_id):
+    def start_quest(self):
         if self.isGoing != True:
             self.isGoing = True
             self.timer = time.time()
             for t in self.teams:
-                bot.sendMessage(t.owner_id, START_MSG)
                 t.timer = time.time()
+                bot.sendMessage(t.owner_id, START_MSG)
         else:
             bot.sendMessage(user_id, 'Квест уже запущен!')
+    def stop_quest(self):
+        self.isGoing = False
+        self.timer = time.time() - self.timer()
+        for t in self.teams:
+            t.timer = time.time() - t.timer
+            t.has_ended = True
+            bot.sendMessage(t.owner_id, STOP_MSG)
     def find_team(self, user_id):
         for t in self.teams:
             if user_id == t.owner_id:
@@ -86,9 +97,13 @@ class Game:
     def register_team(self, user_id, team_name):
         newteam = Team(team_name, user_id)
         self.teams.append(newteam)
-    #   fTeams.truncate(0)
-     #  fTeams.write(json.dumps(self.teams))
-      # fTeams.flush()
+        # try:
+            # fTeams.truncate(0)
+            # for t in self.teams:
+                # fTeams.write(json.dumps(t, default = jdefault))
+            # fTeams.flush()
+        # except Exception as e:
+            # print e
     def is_registered(self, user_id):
         for t in self.teams:
             if t.owner_id == user_id:
@@ -97,7 +112,7 @@ class Game:
     def print_teams(self, user):
         message = [t.name for t in self.teams]
         bot.sendMessage(user["id"], message)        
-    def status(self, user_id):
+    def print_status(self, user_id):
         message = {t.name : t.solved for t in self.teams}
         bot.sendMessage(user_id, message)
     def handle_message(self, msg):
@@ -116,7 +131,7 @@ class Game:
                     elif text[0] == '/status':
                         self.print_status(user['id'])
                     elif text[0] == '/start_quest':
-                        self.start_quest(user['id'])
+                        self.start_quest()
                     elif text[0] == '/stop_quest':
                         pass
                     else:
@@ -143,6 +158,6 @@ if __name__ == '__main__':
     bot.message_loop(quest.handle_message)
     print 'Listening...'
     while 1:
-        time.sleep(10)
+        time.sleep(1)
     f.close()
     fTeams.close()
