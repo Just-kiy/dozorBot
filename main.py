@@ -2,17 +2,18 @@
 import telepot, datetime, time, sys, os, json, collections
 from pprint import pprint
 
-BOT_TOKEN = "178002319:AAE8RLeChZH8uEPT5ooeJ-N4IsD0ZwUrmFA"
-ADMIN_ID = 82691326
-
 class Msg():
-	BAD = ": код не принят"
-	GOOD = ": код принят! Ждите следующую загадку"
-	START = "Внимание, команды! Квест начался! Время пошло!"
-	STOP = "Внимание, команды, квест завершен!"
+	bad = ": код не принят"
+	good = ": код принят! Ждите следующую загадку"
+	bonus = 'Бонусный код принят'
+	start = "Внимание, команды! Квест начался! Время пошло!"
+	stop = "Внимание, команды, квест завершен!"
+	restart = ''
+	last = 'Последняя локация - актовый зал. Вас ждет последнее испытание'
+	congart = 'Поздравляем, вы прошли квест! Ожидайте окончания квеста остальными участниками'
 
-class Team(object):
-    def __init__(self, name, user_id, offset = 0):#, solved = 0, riddles = SECRET_CODES, is_word = False, has_ended = False, timer = 0, offset = 0):
+class Team(Object):
+    def __init__(self, name, user_id, offset = 0):
         self.name = name
         self.owner_id = user_id
         self.solved = 0
@@ -44,7 +45,7 @@ class Game(object):
             self.time_start = time.time()
             for t in self.teams:
 
-                bot.sendMessage(t.owner_id, START)
+                bot.sendMessage(t.owner_id, start)
 
     def stop_quest(self):
         try:
@@ -53,7 +54,7 @@ class Game(object):
             for t in self.teams:
                # t.timer = t.now() - t.timer
                 t.has_ended = True
-                bot.sendMessage(t.owner_id, STOP)
+                bot.sendMessage(t.owner_id, stop)
         except Exception as e:
             print(e)
 
@@ -76,33 +77,33 @@ class Game(object):
             if not team.has_ended:
                 if not team.is_word:
                     if lRid[str(team.cur_position)]['code'].upper() == code.upper():
-                        response += GOOD
+                        response += Msg.good
                         bot.sendMessage(user_id, response)
                         team.solved += 1
                         cur_rid = lRid[str(team.cur_position)]['riddle']
                         team.cur_position = (team.cur_position + 1) % len(lRid) 
                         if team.solved == len(lRid):
                             team.is_word = True
-                            bot.sendMessage(user_id, 'Последняя локация - актовый зал. Вас ждет последнее испытание')
+                            bot.sendMessage(user_id, Msg.last)
                             # team.
                         else:
                             bot.sendMessage(user_id, cur_rid)
                     elif code.upper() in self.riddles['bonus']:
-                        bot.sendMessage(user_id, 'Бонусный код принят')
+                        bot.sendMessage(user_id, Msg.bonus)
                         team.solved_bonus += 1
                         self.riddles['bonus'].remove(code.upper())
                         pprint(self.riddles['bonus'])
                     else:
-                        response += BAD
+                        response += Msg.bad
                         bot.sendMessage(user_id, response)
                 else:
                     if code.upper() != self.riddles['secret'].upper():
-                        response += BAD
+                        response += Msg.bad
                         bot.sendMessage(user_id, response)
                     else:
                         team.time_stop = team.now()
                         team.has_ended = True
-                        bot.sendMessage(user_id, "Поздравляем, вы прошли квест! Ожидайте окончания квеста остальными участниками")
+                        bot.sendMessage(user_id, Msg.congart)
                         bot.sendMessage(ADMIN_ID, 'Team {0} has finished!'.format(team.name))
                 self.json_sync()
             else:
