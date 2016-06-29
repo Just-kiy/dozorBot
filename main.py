@@ -4,15 +4,14 @@ from pprint import pprint
 
 BOT_TOKEN = "178002319:AAE8RLeChZH8uEPT5ooeJ-N4IsD0ZwUrmFA"
 ADMIN_ID = 82691326
-SECRET_CODES = [u'TE', u'ST', u'WO', u'RD']
-SECRET_COUNT = len(SECRET_CODES)
-BAD_MSG = u": код не принят"
-GOOD_MSG = u": код принят! Ждите следующую загадку"
-START_MSG = u"Внимание, команды! Квест начался! Время пошло!"
-STOP_MSG = u"Внимание, команды! Время квеста закончилось! Всем участниками прийти в актовый зал!"
 
+class Msg():
+	BAD = ": код не принят"
+	GOOD = ": код принят! Ждите следующую загадку"
+	START = "Внимание, команды! Квест начался! Время пошло!"
+	STOP = "Внимание, команды, квест завершен!"
 
-class Team:
+class Team(object):
     def __init__(self, name, user_id, offset = 0):#, solved = 0, riddles = SECRET_CODES, is_word = False, has_ended = False, timer = 0, offset = 0):
         self.name = name
         self.owner_id = user_id
@@ -30,7 +29,7 @@ class Team:
         __time = tt.tm_hour * 60 + tt.tm_min
         return __time
 
-class Game:
+class Game(object):
     def __init__(self, game_name, riddles, teams = []):
         self.game_name = game_name
         self.isGoing = False
@@ -45,7 +44,7 @@ class Game:
             self.time_start = time.time()
             for t in self.teams:
 
-                bot.sendMessage(t.owner_id, START_MSG)
+                bot.sendMessage(t.owner_id, START)
 
     def stop_quest(self):
         try:
@@ -54,9 +53,9 @@ class Game:
             for t in self.teams:
                # t.timer = t.now() - t.timer
                 t.has_ended = True
-                bot.sendMessage(t.owner_id, STOP_MSG)
+                bot.sendMessage(t.owner_id, STOP)
         except Exception as e:
-            print e
+            print(e)
 
     def call_help(self, team):
         bot.sendMessage(ADMIN_ID, 'help {0}, location {1}'.format(team.name, team.cur_position + 1))
@@ -76,11 +75,11 @@ class Game:
         try:
             if not team.has_ended:
                 if not team.is_word:
-                    if lRid[unicode(team.cur_position)]['code'].upper() == code.upper():
-                        response += GOOD_MSG
+                    if lRid[str(team.cur_position)]['code'].upper() == code.upper():
+                        response += GOOD
                         bot.sendMessage(user_id, response)
                         team.solved += 1
-                        cur_rid = lRid[unicode(team.cur_position)]['riddle']
+                        cur_rid = lRid[str(team.cur_position)]['riddle']
                         team.cur_position = (team.cur_position + 1) % len(lRid) 
                         if team.solved == len(lRid):
                             team.is_word = True
@@ -94,11 +93,11 @@ class Game:
                         self.riddles['bonus'].remove(code.upper())
                         pprint(self.riddles['bonus'])
                     else:
-                        response += BAD_MSG
+                        response += BAD
                         bot.sendMessage(user_id, response)
                 else:
                     if code.upper() != self.riddles['secret'].upper():
-                        response += BAD_MSG
+                        response += BAD
                         bot.sendMessage(user_id, response)
                     else:
                         team.time_stop = team.now()
@@ -109,7 +108,7 @@ class Game:
             else:
                 bot.sendMessage(team.owner_id, 'Вы уже прошли квест!')
         except Exception as e:
-            print e
+            print(e)
 
     def __register(self, user_id, text):
         if not (user_id in self.black_list):
@@ -138,7 +137,7 @@ class Game:
             fT.flush()
             fT.close()
         except Exception as e:
-            print e
+            print(e)
 
     def is_registered(self, user_id):
         for t in self.teams:
@@ -195,7 +194,7 @@ class Game:
             team = self.find_team(user['id'])
             if text == '/start':
                 pass
-            elif msg.has_key('entities'):
+            elif 'entities' in msg:
                 pprint(msg['entities'][0]['type'])
                 if text[0] == '/register':
                     self.__register(user['id'], text)
@@ -224,7 +223,7 @@ class Game:
                 else:
                     bot.sendMessage(user['id'], 'Квест еще не начался!')
         except Exception as e:
-            print e
+            print(e)
 
 def dictToTeam(d):
     team = Team(d['name'], d['owner_id'])
@@ -257,6 +256,6 @@ if __name__ == '__main__':
     bot = telepot.Bot(BOT_TOKEN)
     bot.message_loop(quest.handle_message)
 
-    print 'Listening...'
+    print('Listening...')
     while 1:
         time.sleep(1)
