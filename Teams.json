@@ -1,0 +1,41 @@
+[{
+	"name": "1",
+	"owner_id": "123",
+	"time_start": 0,
+    "time_stop": 0,
+    "penalty" : 0,
+    "current_location": 0,
+    "cnt_solved" : 0,
+    "cnt_bonus": 0,
+    "has_ended": false
+}, {
+	"name": "2",
+	"owner_id": "122",
+	"time_start": 0,
+    "time_stop": 0,
+    "penalty" : 0,
+    "current_location": 0,
+    "cnt_solved" : 0,
+    "cnt_bonus": 0,
+    "has_ended": false
+}, {
+	"name": "3",
+	"owner_id": "1233",
+	"time_start": 0,
+    "time_stop": 0,
+    "penalty" : 0,
+    "current_location": 0,
+    "cnt_solved" : 0,
+    "cnt_bonus": 0,
+    "has_ended": false
+}, {
+	"name": "4",
+	"owner_id": "124",
+	"time_start": 0,
+    "time_stop": 0,
+    "penalty" : 0,
+    "current_location": 0,
+    "cnt_solved" : 0,
+    "cnt_bonus": 0,
+    "has_ended": false
+}]

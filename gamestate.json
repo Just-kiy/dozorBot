@@ -1,7 +1,8 @@
 {
     "gamename" : "Comics",
-    "ADMIN_ID0": 12345678,
-    "BOT_TOKEN": "12312:asdqwfas:213safqw",
+    "BOT_TOKEN" : "178002319:AAE8RLeChZH8uEPT5ooeJ-N4IsD0ZwUrmFA",
+    "ADMIN_ID" : 82691326,
+    "teams" : "Teams.json",
 	"riddles": {
 		"0": {
 			"sp_riddle": "текст0",

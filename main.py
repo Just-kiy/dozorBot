@@ -10,20 +10,25 @@ class Msg():
 	stop = "Внимание, команды, квест завершен!"
 	restart = ''
 	last = 'Последняя локация - актовый зал. Вас ждет последнее испытание'
-	congart = 'Поздравляем, вы прошли квест! Ожидайте окончания квеста остальными участниками'
+	congrat = 'Поздравляем, вы прошли квест! Ожидайте окончания квеста остальными участниками'
 
-class Team(Object):
-    def __init__(self, name, user_id, offset = 0):
-        self.name = name
-        self.owner_id = user_id
-        self.solved = 0
-        self.solved_bonus = 0
-        self.is_word = False
-        self.has_ended = False
+class Team(object):
+    def __init__(self, d):
+        self.name = ""
+        self.owner_id = 0
         self.time_start = 0
         self.time_stop = 0
-        self.start_position = offset
-        self.cur_position = offset
+        self.penalty = 0
+        self.current_location = 0
+        self.cnt_solved = 0
+        self.cnt_bonus = 0
+        self.has_ended = False
+        if d != []:
+            self.fromDict(d)
+
+    def fromDict(self, d):
+        for k, v in d.items():
+            setattr(self, k, v)
 
     def now(self):
         tt = time.gmtime()
@@ -31,35 +36,37 @@ class Team(Object):
         return __time
 
 class Game(object):
-    def __init__(self, game_name, riddles, teams = []):
-        self.game_name = game_name
+    def __init__(self, data, teams = []):
+        self.ADMIN_ID = data['ADMIN_ID']
         self.isGoing = False
+        self.teams_file = data['team']
         self.teams = teams
         self.time_start = 0
-        self.riddles = riddles
+        self.riddles = data['riddles']
         self.black_list = []
 
-    def start_quest(self):
+    def start_quest(self, isSilent):
         if not self.isGoing:
             self.isGoing = True
             self.time_start = time.time()
             for t in self.teams:
-
-                bot.sendMessage(t.owner_id, start)
+                t.time_start = t.now()
+                if not isSilent:
+                    bot.sendMessage(t.owner_id, Msg.start)
 
     def stop_quest(self):
         try:
             self.isGoing = False
             self.time_start = time.time() - self.time_start
             for t in self.teams:
-               # t.timer = t.now() - t.timer
+                t.time_stop = t.now()
                 t.has_ended = True
-                bot.sendMessage(t.owner_id, stop)
+                bot.sendMessage(t.owner_id, Msg.stop)
         except Exception as e:
             print(e)
 
     def call_help(self, team):
-        bot.sendMessage(ADMIN_ID, 'help {0}, location {1}'.format(team.name, team.cur_position + 1))
+        bot.sendMessage(self.ADMIN_ID, 'help {0}, location {1}'.format(team.name, team.cur_position + 1))
 
     def find_team(self, user_id):
         for t in self.teams:
@@ -103,9 +110,9 @@ class Game(object):
                     else:
                         team.time_stop = team.now()
                         team.has_ended = True
-                        bot.sendMessage(user_id, Msg.congart)
-                        bot.sendMessage(ADMIN_ID, 'Team {0} has finished!'.format(team.name))
-                self.json_sync()
+                        bot.sendMessage(user_id, Msg.congrat)
+                        bot.sendMessage(self.ADMIN_ID, 'Team {0} has finished!'.format(team.name))
+                self.rewrite_json(self.teams_file)
             else:
                 bot.sendMessage(team.owner_id, 'Вы уже прошли квест!')
         except Exception as e:
@@ -128,11 +135,11 @@ class Game(object):
     def register_team(self, user_id, team_name):
         new_team = Team(team_name, user_id, offset=len(self.teams))
         self.teams.append(new_team)
-        self.json_sync()
+        self.rewrite_json(self.teams_file)
 
-    def json_sync(self):
+    def rewrite_json(self, name):
         try:
-            fT = open('RegisteredTeams.json', 'r+')
+            fT = open(name, 'r+')
             fT.truncate(0)
             fT.write(json.dumps(self.teams, default=jdefault))
             fT.flush()
@@ -152,29 +159,21 @@ class Game(object):
                 bot.sendMessage(t.owner_id, 'Ваша команда была исключена! Обратитесь к организаторам!')
                 self.black_list.append(t.owner_id)
                 self.teams.remove(t)
-                self.json_sync()
+                self.rewrite_json(self.teams_file)
                 return True
         return False
-
-    # TODO
-    # def ban_team(self, name, __time):
-    #     for t in self.team:
-    #         if t.name == name:
-    #             bot.sendMessage(t.owner_id, 'Banned for {0} seconds'.format(__time))
 
     def restart_game(self):
         self.time_start = 0
         self.isGoing = False
         self.riddles = json_load('Riddles.json')
         for t in self.teams:
-
-           # t.timer = time.gmtime()
             t.solved = 0
             t.cur_position = t.start_position
             t.is_word = False
             t.has_ended = False
             bot.sendMessage(t.owner_id, 'Игра была перезапущена. Ждите старта!')
-        self.json_sync()
+        self.rewrite_json(self.teams_file)
 
     def print_status(self, user_id):
         message = {t.name : [t.solved, t.cur_position, t.solved_bonus, t.now() - t.time_start] for t in self.teams}
@@ -201,7 +200,7 @@ class Game(object):
                     self.__register(user['id'], text)
                 elif text[0] == '/help':
                     self.call_help(self.find_team(user['id']))
-                elif user['id'] == ADMIN_ID:
+                elif user['id'] == self.ADMIN_ID:
                     if text[0] == '/del':
                         self.del_team(text[1])
                     elif text[0] == '/status':
@@ -209,7 +208,10 @@ class Game(object):
                     elif text[0] == '/send':
                         self.send_message(text[1], ' '.join(text[2:]))
                     elif text[0] == '/start_quest':
-                        self.start_quest()
+                        if len(text) > 1 and text[1] == 'y':
+                            self.start_quest(True)
+                        else:
+                            self.start_quest(False)
                     elif text[0] == '/stop_quest':
                         self.stop_quest()
                     elif text[0] == '/restart':
@@ -226,16 +228,11 @@ class Game(object):
         except Exception as e:
             print(e)
 
-def dictToTeam(d):
-    team = Team(d['name'], d['owner_id'])
-    team.solved = d['solved']
-    team.is_word = d['is_word']
-    team.has_ended = d['has_ended']
-    team.time_start = d['time_start']
-    team.time_stop = d['time_stop']
-    team.start_position = d['start_position']
-    team.cur_position = d['cur_position']
-    return team
+
+def jsonToClass(js, _class):
+    for attr, value in _class.__dict___.iteritems():
+        if attr in js:
+            value = js[attr]
 
 def jdefault(o):
     return o.__dict__
@@ -250,12 +247,13 @@ def json_load(fName):
 
 
 if __name__ == '__main__':
-    riddles = json_load('Riddles.json')
-    lTeams = json_load('RegisteredTeams.json')
-    teams = [dictToTeam(t) for t in lTeams]
-    quest = Game('Hogwarts quest', riddles=riddles, teams = teams)
-    bot = telepot.Bot(BOT_TOKEN)
-    bot.message_loop(quest.handle_message)
+    gamedata = json_load('gamestate.json')
+    lTeams = json_load(gamedata['teams'])
+    teams = [Team(t) for t in lTeams]
+    pprint(teams)
+    # quest = Game(gamedata, teams)
+    # bot = telepot.Bot(gamedata['BOT_TOKEN'])
+    # bot.message_loop(quest.handle_message)
 
     print('Listening...')
     while 1:
