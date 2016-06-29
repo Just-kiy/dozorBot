@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-import telepot, datetime, time, sys, os, json, collections
+import telepot, time, json
 from pprint import pprint
 
 class Msg():
-	bad = ": код не принят"
-	good = ": код принят! Ждите следующую загадку"
-	bonus = 'Бонусный код принят'
+	bad = ": код не принят!"
+	good = ": код принят! Ждите следующую загадку."
+	bonus = 'Бонусный код принят!'
 	start = "Внимание, команды! Квест начался! Время пошло!"
 	stop = "Внимание, команды, квест завершен!"
-	restart = ''
-	last = 'Последняя локация - актовый зал. Вас ждет последнее испытание'
-	congrat = 'Поздравляем, вы прошли квест! Ожидайте окончания квеста остальными участниками'
+	restart = 'Внимание, команды, игра была перезапущена! Ожидайте старта!'
+	last = 'Последняя локация - актовый зал. Вас ждет последнее испытание...'
+	congrat = 'Поздравляем, вы прошли квест! Ожидайте окончания квеста...'
+
+
 
 class Team(object):
     def __init__(self, d):
@@ -19,54 +21,57 @@ class Team(object):
         self.time_start = 0
         self.time_stop = 0
         self.penalty = 0
-        self.current_location = 0
+        self.loc_cur = 0
+        self.loc_start = 0
         self.cnt_solved = 0
         self.cnt_bonus = 0
         self.has_ended = False
-        if d != []:
+        if d is not []:
             self.fromDict(d)
 
     def fromDict(self, d):
         for k, v in d.items():
             setattr(self, k, v)
 
-    def now(self):
-        tt = time.gmtime()
-        __time = tt.tm_hour * 60 + tt.tm_min
-        return __time
 
 class Game(object):
     def __init__(self, data, teams = []):
+        self.raw = data
         self.ADMIN_ID = data['ADMIN_ID']
         self.isGoing = False
-        self.teams_file = data['team']
+        self.teams_file = data['teams']
         self.teams = teams
         self.time_start = 0
         self.riddles = data['riddles']
+        pprint([t.name for t in self.teams])
+        # print(self.riddles['0']['sp_riddle'] == 'текст0')
+        # pprint(self.riddles)
+        # pprint(self.riddles['1'])
         self.black_list = []
 
     def start_quest(self, isSilent):
         if not self.isGoing:
             self.isGoing = True
-            self.time_start = time.time()
+            self.time_start = now()
             for t in self.teams:
-                t.time_start = t.now()
+                t.time_start = now()
                 if not isSilent:
                     bot.sendMessage(t.owner_id, Msg.start)
 
     def stop_quest(self):
         try:
             self.isGoing = False
-            self.time_start = time.time() - self.time_start
+            self.time_start = now() - self.time_start
             for t in self.teams:
-                t.time_stop = t.now()
+                t.time_stop = now()
                 t.has_ended = True
                 bot.sendMessage(t.owner_id, Msg.stop)
         except Exception as e:
             print(e)
 
     def call_help(self, team):
-        bot.sendMessage(self.ADMIN_ID, 'help {0}, location {1}'.format(team.name, team.cur_position + 1))
+        team.penalty+=1
+        bot.sendMessage(self.ADMIN_ID, 'help {0}, location {1}'.format(team.name, team.loc_cur + 1))
 
     def find_team(self, user_id):
         for t in self.teams:
@@ -79,20 +84,18 @@ class Game(object):
         response = code
         code = code.upper()
         lRid = self.riddles['riddles']
-        # pprint(lRid)
         try:
             if not team.has_ended:
                 if not team.is_word:
-                    if lRid[str(team.cur_position)]['code'].upper() == code.upper():
+                    if lRid[str(team.loc_cur)]['code'].upper() == code.upper():
                         response += Msg.good
                         bot.sendMessage(user_id, response)
                         team.solved += 1
-                        cur_rid = lRid[str(team.cur_position)]['riddle']
-                        team.cur_position = (team.cur_position + 1) % len(lRid) 
+                        cur_rid = lRid[str(team.loc_cur)]['riddle']
+                        team.loc_cur = (team.loc_cur + 1) % len(lRid)
                         if team.solved == len(lRid):
                             team.is_word = True
                             bot.sendMessage(user_id, Msg.last)
-                            # team.
                         else:
                             bot.sendMessage(user_id, cur_rid)
                     elif code.upper() in self.riddles['bonus']:
@@ -132,8 +135,8 @@ class Game(object):
             else:
                 bot.sendMessage(user_id, 'Пожалуйста, введите /register и название команды')
 
-    def register_team(self, user_id, team_name):
-        new_team = Team(team_name, user_id, offset=len(self.teams))
+    def register_team(self, owner_id, name):
+        new_team = Team({"owner_id":owner_id, "name":name})
         self.teams.append(new_team)
         self.rewrite_json(self.teams_file)
 
@@ -141,7 +144,7 @@ class Game(object):
         try:
             fT = open(name, 'r+')
             fT.truncate(0)
-            fT.write(json.dumps(self.teams, default=jdefault))
+            fT.write(json.dumps(self.teams, default=jdefault, ensure_ascii=False))
             fT.flush()
             fT.close()
         except Exception as e:
@@ -164,20 +167,24 @@ class Game(object):
         return False
 
     def restart_game(self):
-        self.time_start = 0
+        self.time_start = now()
         self.isGoing = False
-        self.riddles = json_load('Riddles.json')
+        self.riddles = self.raw['riddles']
         for t in self.teams:
-            t.solved = 0
-            t.cur_position = t.start_position
-            t.is_word = False
+            t.cnt_solved = 0
+            t.cnt_bonus = 0
+            t.loc_cur = t.loc_start
             t.has_ended = False
-            bot.sendMessage(t.owner_id, 'Игра была перезапущена. Ждите старта!')
+            t.penalty = 0
+            t.time_start = now()
+            t.time_stop = now()
+            bot.sendMessage(t.owner_id, Msg.restart)
         self.rewrite_json(self.teams_file)
 
-    def print_status(self, user_id):
-        message = {t.name : [t.solved, t.cur_position, t.solved_bonus, t.now() - t.time_start] for t in self.teams}
-        bot.sendMessage(user_id, message)
+    def print_status(self):
+        message = {t.name : [t.cnt_solved, t.loc_cur, t.cnt_bonus, now() - t.time_start, t.penalty
+        ] for t in self.teams}
+        bot.sendMessage(self.ADMIN_ID, message)
 
     def send_message(self, to_name, text):
         for t in self.teams:
@@ -204,7 +211,7 @@ class Game(object):
                     if text[0] == '/del':
                         self.del_team(text[1])
                     elif text[0] == '/status':
-                        self.print_status(user['id'])
+                        self.print_status()
                     elif text[0] == '/send':
                         self.send_message(text[1], ' '.join(text[2:]))
                     elif text[0] == '/start_quest':
@@ -229,31 +236,31 @@ class Game(object):
             print(e)
 
 
-def jsonToClass(js, _class):
-    for attr, value in _class.__dict___.iteritems():
-        if attr in js:
-            value = js[attr]
-
 def jdefault(o):
     return o.__dict__
 
+
 def json_load(fName):
-    with open(fName, "r+") as f:
-       data = f.read().replace('\n', '')
-       data = json.loads(data)
+    with open(fName, "rb+") as f:
+        data = f.read()
+        data = json.loads(data.decode('utf8'))
     return data
+
+
+def now():
+    return int(time.time())
 
 #====================MAIN=============================#
 
 
 if __name__ == '__main__':
-    gamedata = json_load('gamestate.json')
+    gamedata = json_load('gamestate.json',)
     lTeams = json_load(gamedata['teams'])
     teams = [Team(t) for t in lTeams]
     pprint(teams)
-    # quest = Game(gamedata, teams)
-    # bot = telepot.Bot(gamedata['BOT_TOKEN'])
-    # bot.message_loop(quest.handle_message)
+    quest = Game(gamedata, teams)
+    bot = telepot.Bot(gamedata['BOT_TOKEN'])
+    bot.message_loop(quest.handle_message)
 
     print('Listening...')
     while 1:
