@@ -1,1 +1,23 @@
-[{"loc_start": 0, "cnt_solved": 0, "penalty": 0, "time_start": 1467209841, "name": "огу", "owner_id": "123", "loc_cur": 0, "has_ended": false, "cnt_bonus": 0, "loc_cur": 0, "time_stop": 0}, {"loc_start": 0, "cnt_solved": 0, "penalty": 0, "time_start": 1467209841, "name": "юи", "owner_id": "122", "loc_cur": 0, "has_ended": false, "cnt_bonus": 0, "loc_cur": 0, "time_stop": 0}, {"loc_start": 0, "cnt_solved": 0, "penalty": 0, "time_start": 1467209841, "name": "унииит", "owner_id": "1233", "loc_cur": 0, "has_ended": false, "cnt_bonus": 0, "loc_cur": 0, "time_stop": 0}, {"loc_start": 0, "cnt_solved": 0, "penalty": 0, "time_start": 14672098427, "name": "цццц", "owner_id": "124", "loc_cur": 0, "has_ended": false, "cnt_bonus": 0, "loc_cur": 0, "time_stop": 0}, {"loc_start": 0, "cnt_solved": 0, "penalty": 0, "time_start": 0, "name": "lallllalallalalala", "owner_id": 82691326, "loc_cur": 0, "has_ended": false, "cnt_bonus": 0, "time_stop": 0}]
+[
+    {
+        "cnt_bonus": 0,
+        "cnt_solved": 0,
+        "has_ended": false,
+        "loc_cur": 0,
+        "loc_start": 0,
+        "name": "lal",
+        "owner_id": 82691326,
+        "penalty": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "time_start": 1467397348,
+        "time_stop": 1467397348
+    }
+]
